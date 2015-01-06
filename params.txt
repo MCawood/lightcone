@@ -1,7 +1,7 @@
 CUBESIZE=64.0
 CONEAXISVECTOR=10,2,3
-ZMAX=0.58
-NCPUS=10
+ZMAX=0.5
+NCPUS=4
 DM=YES
 SNAPNAME=/data/ace_scratch/Gadget_August/p64n256/results/snap_p64n256_X
 X=141
