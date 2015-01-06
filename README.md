@@ -6,12 +6,12 @@ Matthew Cawood
 
 Python toolkit for generating HI lightcones for GADGET simulations
 
-This Python code was developed to process GADGET simulation data into synthetic lightcones.  It uses pyGadgetReader to read particle data from GADGET snapshots and processes this data into a pixelised lightcone.  The output is stored as a large dense NumPy array (datacube).
+This Python code was developed to process GADGET simulation data into synthetic lightcones.  It uses pyGadgetReader to read particle data from GADGET snapshots and processes this into a pixelised lightcone.  The output is stored as a large dense NumPy array (datacube).
 
 1. Quick Start Guide
 -------------------
 
-To run the code, simply check that the params.txt is correctly configured with your GADGET snapshot path, then run the launcher.py file with your Python interpreter.
+To run the code, simply check that the params.txt is correctly configured with the path to your GADGET snapshots, then run the launcher.py file with your Python interpreter.
 
 2. Requirements
 -------------------
@@ -22,31 +22,22 @@ To run the code, simply check that the params.txt is correctly configured with y
 
 3. Installation
 -------------------
-No installation is required, just ensure that the above software packages are install and are sourced.  
+No installation is required, just ensure that the above software packages are installed and are sourced.  
 
 4. Configuration
 -------------------
 The params.txt file contains all the user configurable parameters for this toolkit.  The contents of which are:
 
-CUBESIZE=[size of GADGET simulation cube is Mpcs]
-
-CONEAXISVECTOR=[a comma delimited 3D vector describing the axis along which the cone will be created.  (0,0,0) represents the direction of snapshot stackking]
-
-ZMAX=[the maximum redshift of the lightcone, this will determine the number of stacked snapshots]
-
-NCPUS=[number of CPU cores to run the snapshot processing stage on]
-
-DM=[YES/NO - toggles whether to add dark matter to the output datacube]
-
-SNAPNAME=[the full path and filename to the input GADGET snapshots, with X used to represent the number section of the file name]
-
-X=[the number of the last GADGET snapshot, representing z=0, eg: 141]
-
-PIXELS=[the number of spatial pixels into which the lightcone will be partitioned along each spatial axis]
-
-FREQBINS=[number of frequency channels into which the lightcone will be partitioned]
-
-DIAG=[YES/NO, toggles additional output generation used for developement and debugging]
+-CUBESIZE=[size of GADGET simulation cube is Mpcs]
+-CONEAXISVECTOR=[a comma delimited 3D vector describing the axis along which the cone will be created.  (0,0,0) represents the direction of snapshot stackking]
+-ZMAX=[the maximum redshift of the lightcone, this will determine the number of stacked snapshots]
+-NCPUS=[number of CPU cores to run the snapshot processing stage on]
+-DM=[YES/NO - toggles whether to add dark matter to the output datacube]
+-SNAPNAME=[the full path and filename to the input GADGET snapshots, with X used to represent the number section of the file name]
+-X=[the number of the last GADGET snapshot, representing z=0, eg: 141]
+-PIXELS=[the number of spatial pixels into which the lightcone will be partitioned along each spatial axis]
+-FREQBINS=[number of frequency channels into which the lightcone will be partitioned]
+-DIAG=[YES/NO, toggles additional output generation used for developement and debugging]
 
 A sample params.txt file is included to demonstrate the correct format.
 
