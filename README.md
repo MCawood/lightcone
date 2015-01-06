@@ -28,16 +28,16 @@ No installation is required, just ensure that the above software packages are in
 -------------------
 The params.txt file contains all the user configurable parameters for this toolkit.  The contents of which are:
 
--CUBESIZE=[size of GADGET simulation cube is Mpcs]
--CONEAXISVECTOR=[a comma delimited 3D vector describing the axis along which the cone will be created.  (0,0,0) represents the direction of snapshot stackking]
--ZMAX=[the maximum redshift of the lightcone, this will determine the number of stacked snapshots]
--NCPUS=[number of CPU cores to run the snapshot processing stage on]
--DM=[YES/NO - toggles whether to add dark matter to the output datacube]
--SNAPNAME=[the full path and filename to the input GADGET snapshots, with X used to represent the number section of the file name]
--X=[the number of the last GADGET snapshot, representing z=0, eg: 141]
--PIXELS=[the number of spatial pixels into which the lightcone will be partitioned along each spatial axis]
--FREQBINS=[number of frequency channels into which the lightcone will be partitioned]
--DIAG=[YES/NO, toggles additional output generation used for developement and debugging]
+- CUBESIZE=[size of GADGET simulation cube is Mpcs]
+- CONEAXISVECTOR=[a comma delimited 3D vector describing the axis along which the cone will be created.  (0,0,0) represents the direction of snapshot stackking]
+- ZMAX=[the maximum redshift of the lightcone, this will determine the number of stacked snapshots]
+- NCPUS=[number of CPU cores to run the snapshot processing stage on]
+- DM=[YES/NO - toggles whether to add dark matter to the output datacube]
+- SNAPNAME=[the full path and filename to the input GADGET snapshots, with X used to represent the number section of the file name]
+- X=[the number of the last GADGET snapshot, representing z=0, eg: 141]
+- PIXELS=[the number of spatial pixels into which the lightcone will be partitioned along each spatial axis]
+- FREQBINS=[number of frequency channels into which the lightcone will be partitioned]
+- DIAG=[YES/NO, toggles additional output generation used for developement and debugging]
 
 A sample params.txt file is included to demonstrate the correct format.
 
