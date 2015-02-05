@@ -12,7 +12,7 @@ from os import path
 import matplotlib.pyplot as plt
 import scipy.interpolate
 import matplotlib as mpl
-import pyfits
+#import pyfits
 
 cmdargs = str(sys.argv)
 
