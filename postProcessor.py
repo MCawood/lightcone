@@ -12,7 +12,7 @@ from os import path
 import matplotlib.pyplot as plt
 import scipy.interpolate
 import matplotlib as mpl
-#import pyfits
+import pyfits
 
 cmdargs = str(sys.argv)
 
@@ -25,12 +25,14 @@ start = 0
 stop = sys.argv[1]
 zBins = 0
 pixels = 0
-elmsPerPix = 11
+elmsPerPix = 14
 offset = 0
-binsProcessed=0
 doDM= False
 diag = False
 zMax = 0
+rc = False
+labels = ['z', 'deltaZ', 'ra', 'dec', 'gasParts', 'ionisedMass', 'hiMass', 'h2Mass', 'hiFlux', 'sfr', 'radioCont', 'perculiarV', 'starParts', 'starMass', 'dmParts', 'dmMass']
+
 
 print "\n \n \n"
 print "Lightcone postprocessor"
@@ -56,39 +58,66 @@ with open("params.txt") as f:
 	if(line[0] == "DM"):
             if(line[1].rstrip() == "YES"):
                 doDM = True
-		elmsPerPix=13
+		elmsPerPix=16
         if(line[0] == "DIAG"):
             if(line[1].rstrip() == "YES"):
                 diag = True
+        if(line[0] == "RC"):
+            if(line[1].rstrip() == "YES"):
+                rc = True
+
+
 
 dataCube = 0
 
-def calcRadius(z):
+def calcRadius():
+
+    inP = np.load('dataCube_z.npz', 'r')['dataSet']
+    tally = np.sum((inP > 0), axis=(1,2))
+    mask = tally > 0
+    z=np.zeros(tally.size)
+    z[mask] = np.sum(inP, axis=(1,2))[mask]/tally[mask]
+
+    points = [line.split(" ") for line in open("zr.txt")]
+    zrFunc = UnivariateSpline(map(float, zip(*points)[2]), map(float, zip(*points)[1]), s=0)
+
     rad = np.tan(np.radians((z+1)/np.sqrt(np.pi)))*zrFunc(z)
     mask = rad < 0.001
     rad[mask] = 0.
-    return rad
+
+    out = open('radii.txt', 'w')
+
+    for i in range(len(rad)):
+        out.write(str(rad[i]) + "\n")
+
+    out.close()
 
 def calcArea(z):
     return np.square(calcRadius(z))*np.pi
 
-def calcRedshift(p,z):
+def calcRedshift():
 
-    sum = np.sum(z, axis=(1,2))
-    r = p > 0
-    s = np.sum(r, axis=(1,2))
-    mask = s > 0
+    z = np.load('dataCube_z.npz')['dataSet']
 
-    zs = np.zeros(s.shape)
+    div = np.sum(z>0.01, axis=(1,2))
+    tot = np.sum(z, axis=(1,2))
 
-    zs[mask] = sum[mask]/s[mask]
+    sel = div > 0
+
+    mean = np.zeros(z.shape[0])
+    mean[sel] = tot[sel]/div[sel]
+
     out = open('coneZ.txt', 'w')
-    bins = zs
+    bins = mean
     for i in range(len(bins)):
         out.write(str(bins[i]) + "\n")
     out.close()
 
-def calcRC(cube):
+def calcRC():
+
+    global dataCube
+
+    sfr = np.load('dataCube_z.npz')['dataSet']
 
     maxZ = 0.58
     freqMax = HIfreq
@@ -96,67 +125,69 @@ def calcRC(cube):
     freqRange = freqMax - freqMin
     channelWidth = freqRange/zBins
 
-    out = np.empty_like(cube)
-
     freqs = freqMin + channelWidth*(np.arange(zBins))
     for i in range(zBins):
 
-	doMask = cube[i,:,:] > 0.
+	doMask = sfr[i,:,:] > 0.
 
     	L = np.zeros((pixels,pixels))
-    	L[doMask] = (cube[i,doMask]/5.9e-22)*channelWidth*1.e3
+    	L[doMask] = (sfr[i,doMask]/5.9e-22)*channelWidth*1.e3
 
     	nF = freqs[i]/freqs
-    	out += L * np.power(nF, -0.7)[:,None,None]
+    	dataCube += L * np.power(nF, -0.7)[:,None,None]
 
-    return out
-    
 #func to read boxes from file
-def addBox(i):
+def addBox(prop, cube):
 
     global dataCube
     global offset 
-    global binsProcessed
     global zBins
 
     dir = path.dirname(__file__)
-    filename = path.join(dir, 'data/cubeID_'+str(i)+'_data.npy')
+    filename = path.join(dir, 'data/cubeID_'+str(cube)+'.npz')
 
-    t = np.load(filename)
+    print "reading", labels[prop], "from",  filename, "..." 
+
+
+    t = np.load(filename)[labels[prop]]
+
     cubeDepth = t.shape[0]
-    upperBound = min((offset[i]+cubeDepth), zBins)
 
-    boxLimit = upperBound - offset[i]
+    
+    upperBound = min((offset[cube]+cubeDepth), zBins)
+
+    boxLimit = upperBound - offset[cube]
 
     #non cumulative data, redshift etc
-    dataCube[offset[i]:upperBound,:,:,[1,2]] = np.maximum(t[0:boxLimit,:,:,[1,2]], dataCube[offset[i]:upperBound,:,:,[1,2]])
+
+    if prop in (0, 1, 2, 3, 11):
+
+        find = np.where(t[0:boxLimit,:,:] != 0 )
+  
+        #print dataCube[toPos,find[1],find[2],find[3]].shape
+
+        dataCube[find[0]+offset[cube],find[1],find[2]] = t[find[0],find[1],find[2]]
+
     
-    #cumulative data
-    if not doDM:
-        dataCube[offset[i]:upperBound,:,:,[0,3,4,5,6,7,8,9,10]] += t[0:boxLimit,:,:,[0,3,4,5,6,7,8,9,10]]
-        print "Snapshot:", i, ", gas particles:", int(np.sum(t[0:boxLimit,:,:,0])), ",star particles:", int(np.sum(t[0:boxLimit,:,:,8]))
-
     else:
-	dataCube[offset[i]:upperBound,:,:,[0,3,4,5,6,7,8,9,10,11,12]] += t[0:boxLimit,:,:,[0,3,4,5,6,7,8,9,10,11,12]]
-	print "Snapshot:", i, ", gas particles:", int(np.sum(t[0:boxLimit,:,:,0])), ",star particles:", int(np.sum(t[0:boxLimit,:,:,8])), ", DM particles:", int(np.sum(t[0:boxLimit,:,:,10]))
 
-    binsProcessed += cubeDepth
+        #cumulative data
+        dataCube[offset[cube]:upperBound,:,:] += t[0:boxLimit,:,:]
+
     sys.stdout.flush()
 
 if (stop == "old"):
 
-    print "Using existing dataCube.npy file"
+    print "Using existing dataCube files"
     #read precombined box
     sys.stdout.flush()
-    dataCube = np.load('dataCube.npy')
-    print "Loaded."
+    #dataCube = np.load('dataCube.npy')
 
 else:
 
     print "Creating new data cube... \n"
     stop = int(stop)
     sys.stdout.flush()   
-    dataCube = np.zeros((zBins, pixels, pixels, elmsPerPix), dtype=np.float32)
 
     #get cube offsets
     offset = np.zeros(stop-start+1, dtype=np.int32)
@@ -177,64 +208,33 @@ else:
                 offset[box] = int(line[1])
 
     #read boxes
-    for i in range(start, stop):
-	addBox(i)
+    for i in range(elmsPerPix):
+ 	dataCube = np.zeros((zBins, pixels, pixels), dtype=np.float32)
+	print "Stitching ", labels[i], "..."
+	for j in range(start, stop):
+	    addBox(i, j)
+
+	#if processing RC
+	if i == 10:
+	    #if RC flag
+	    if rc:
+	        print "Begining radio continuum caclucation..."
+	        calcRC()
+        	print "Complete."
+
+	print "Saving..."
+	
+	print str(labels[i]), np.shape(dataCube), np.sum(dataCube), np.count_nonzero(dataCube)
+	np.savez_compressed(('dataCube_'+str(labels[i])), dataSet=dataCube[0:zBins,:,:])
+	dataCube = 0
+	print "Done. \n"
 
     print "Saving new snapshot to dataCube.npy"
     np.save('dataCube', dataCube)
 
-#take desired number of Z bins from raw cube
-dataCube = dataCube[0:zBins,:,:,:]
-
-shape = dataCube.shape
-
-mask = np.zeros((shape[0],shape[1],shape[2]), dtype=bool)
-
-p = dataCube[:,:,:,0]
-z = dataCube[:,:,:,1]
-zDelta = dataCube[:,:,:,2]
-totGas = dataCube[:,:,:,3]
-h1mass = dataCube[:,:,:,4] 
-h2mass = dataCube[:,:,:,5]
-flux = dataCube[:,:,:,6]
-vel = dataCube[:,:,:,7]
-sfr = dataCube[:,:,:,8]
-starPart = dataCube[:,:,:,9]
-starMass = dataCube[:,:,:,10]
-
-dmPart =0
-dmMass =0
-
-if doDM:
-    dmPart = dataCube[:,:,:,11]
-    dmMass = dataCube[:,:,:,12]
-
-tally = p > 0
-m1 = np.sum(tally, axis=(1,2)) > 0
-binZs = np.zeros(zBins)
-binZs[m1] = np.nan_to_num(np.divide(np.sum(z, axis=(1,2))[m1],np.sum(tally, axis=(1,2))[m1]))
-area = calcArea(binZs)
-radii = calcRadius(binZs)
-
-Sv = 0
-
-#flatten redshift array to put through Spline function (no multiD support)
-zShape = z.shape
-distToBin = zrFunc(z.flatten()).reshape(zShape)
 
 def zToFreq (z):    
 	return HIfreq/(1.+z)
-
-
-mass = 0.
-thresh = np.max(h1mass)/10
-
-histArr = np.zeros(7)
-
-test =0
-inp=0
-outp=0
-
 
 
 def threeD():
@@ -268,7 +268,7 @@ def flythrough():
 
         cut1 = np.sum(dmMass[slice-thickness:slice+thickness,:,:], axis=0)
         cut2 = np.sum(h1mass[slice-thickness:slice+thickness,:,:], axis=0)
-        cut3 = np.sum(totGas[slice-thickness:slice+thickness,:,:], axis=0)
+        cut3 = np.sum(ion[slice-thickness:slice+thickness,:,:], axis=0)
         cut4 = np.sum(starMass[slice-thickness:slice+thickness,:,:], axis=0)
 
         coords1 = np.where(cut1 > 0)
@@ -287,7 +287,7 @@ def flythrough():
 
         np.save('dm_'+str(i), data1)
         np.save('h1_'+str(i), data2)
-        np.save('totGas_'+str(i), data3)
+        np.save('ion_'+str(i), data3)
         np.save('star_'+str(i), data4)
 
         i += (1 + thickness*2)
@@ -306,27 +306,69 @@ def crossSection():
 
     cut1 = np.sum(dmMass[slice-thickness:slice+thickness,:,:], axis=0)
     cut2 = np.sum(h1mass[slice-thickness:slice+thickness,:,:], axis=0)
-    cut3 = np.sum(totGas[slice-thickness:slice+thickness,:,:], axis=0)
+    cut3 = np.sum(h2mass[slice-thickness:slice+thickness,:,:], axis=0)
+    cut4 = np.sum(ion[slice-thickness:slice+thickness,:,:], axis=0)
+    cut5 = np.sum(starMass[slice-thickness:slice+thickness,:,:], axis=0)
+
+
 
     #coords =
     coords1 = np.where(cut1 > 0)
     coords2 = np.where(cut2 > 0)
     coords3 = np.where(cut3 > 0)
+    coords4 = np.where(cut4 > 0)
+    coords5 = np.where(cut5 > 0)
+
 
     print "cords", len(coords1[1]), len(coords2[1])
 
     data1 = np.array([coords1[0], coords1[1], cut1[coords1]])
     data2 = np.array([coords2[0], coords2[1], cut2[coords2]])
     data3 = np.array([coords3[0], coords3[1], cut3[coords3]])
+    data4 = np.array([coords4[0], coords4[1], cut4[coords4]])
+    data5 = np.array([coords5[0], coords5[1], cut5[coords5]])
+
+
 
     print len(data1[0])
 
     np.save('dm', data1)
     np.save('h1', data2)
-    np.save('totGas', data3)
-    np.save('flux', flux)
+    np.save('h2', data3)
+    np.save('ion', data4)
+    np.save('star', data5)
 
+
+
+    np.save('flux', flux)
+   
 #crossSection()
+
+def crossSection2():
+
+    pixPerSlice = np.sum(p, axis=(1,2))
+
+    slice = np.argmax(pixPerSlice)
+    slice = 915
+    print "busiest freq bin:", slice
+
+    min = 915
+    max = 930
+
+    np.save('dm', dmMass[min:max,:,:])
+    np.save('h1', h1mass[min:max,:,:])
+    np.save('h2', h2mass[min:max,:,:])
+    np.save('ion', ion[min:max,:,:])
+    np.save('star', starMass[min:max,:,:])
+
+    np.save('ra', ra[min:max,:,:])
+    np.save('dec', dec[min:max,:,:])
+
+    print np.min(ra[slice,:,:])
+    print np.min(ra)
+
+
+#crossSection2()
 
 if (diag):
 
@@ -408,11 +450,4 @@ if (diag):
     out.close()
 
 
-
-print "Particles tested", test
-print "H1mass threshhold", thresh
-print "Non-detections", outp, "Detections", inp
-
-print "Total H1mass", np.sum(h1mass)
-print "Maximum H1mass", np.max(h1mass)
-print "Amount H1 found", mass
+print "Post processor complete."
