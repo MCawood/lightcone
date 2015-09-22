@@ -13,6 +13,7 @@ import os
 import time
 import threading 
 import platform
+import glob 
 
 cpus=0
 z=0
@@ -189,6 +190,11 @@ def clean():
         except Exception, e:
             print e
 
+
+    #delete old dataCube files
+    for filename in glob.glob("./dataCube_*"):
+	os.remove(filename) 
+
 #thread spawner
 def startCube(arg, lock):
     
@@ -254,6 +260,8 @@ while 1:
 	filename = os.path.join(dir, 'logs/post.log')
 
 	os.system("python postProcessor.py "+ str(numCubes) + " > " + filename)
+	os.system("python calcRadius.py")
+
 
 	print "Postprocessing complete!"
 	print "Time:", round((time.time() - t2)/60, 2), "mins"
