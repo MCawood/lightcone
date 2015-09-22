@@ -15,6 +15,7 @@ from os import path
 inP=0
 outP=0
 binArray = 0
+rc = 0
 zMax = 0
 zMin = 0
 zBins = 0
@@ -26,6 +27,7 @@ neutral_mass=0
 HIfreq = 1420.40575177
 omega_matter = 0.3
 omega_lamda = 0.7
+c=299792.
 T=0
 rho=0
 gasMass=0
@@ -34,7 +36,7 @@ starMass=0
 sfr=0
 fneut=0
 hsml=0
-vel=0
+gasVel=0
 scaleFactor=0
 offSet=0
 zUpperLimit=0
@@ -56,9 +58,6 @@ NHILIM       = 1.73e18  ## Lyman Limit (adjustable)
 M_PI = math.pi
 
 KernIntTable = np.zeros((NINTERP+1,3))
-
-#datacube
-binArray = 0
 
 #----------------MATH FUNCTIONS--------------------
 
@@ -110,8 +109,9 @@ def recessV(z):
 #calculate flux
 def calcFlux(h1, Dl):
 
-     L = 6.27e-9 * h1
-     S = L / (4*np.pi*np.square(Dl))
+     # fact = 6.27e-9/(1.04e3*1.42)
+     fact =  4.246e-6
+     S = fact * h1 * np.square(Dl)
      return S
 
 #-------------------Particle Testing-------------------
@@ -122,9 +122,9 @@ def test_particle(particle, starFlag, dmFlag):
     global time1, OneOverPi, coneVec, binned
     t = time.clock()
     if starFlag:
-	print "Starting star particle testing..."
+    print "Starting star particle testing..."
     elif dmFlag:
-	print "Starting DM particle testing..."
+    print "Starting DM particle testing..."
     else:
         print "Starting gas particle testing..."
 
@@ -146,30 +146,30 @@ def test_particle(particle, starFlag, dmFlag):
     numParts = np.sum(binned)
 
     if (numParts > 0):
-	#if tested particles are stars
+    #if tested particles are stars
 	if starFlag:
-            print numParts, "star particles found in this tile \n"
+        print "    ", numParts, "star particles found in this tile"
             bin_Misc(particle[binned], length[binned], z[binned], binned, True)
 
-	#if particles are dark matter
+    #if particles are dark matter
 	elif dmFlag:
-  	    print numParts, "DM particles found in this tile \n"
-	    bin_Misc(particle[binned], length[binned], z[binned], binned, False)
+        print "    ", numParts, "DM particles found in this tile"
+        bin_Misc(particle[binned], length[binned], z[binned], binned, False)
     
 	#if particles are gas
 	elif ~starFlag and ~dmFlag:
-            print numParts, "gas particles found in this tile \n"
-            bin_Gas(particle[binned], length[binned], z[binned], binned)
+        print "    ", numParts, "gas particles found in this tile"
+        bin_Gas(particle[binned], length[binned], z[binned], binned)
 
 	else:
-	    print "No particles found in this tile"
+	    print "    No particles found in this tile"
 
 #---------------------------------------------------------------------------------------
 def bin_Gas(particle, length, z, binned):
     
-    print "Begin gas binning..."
+    print "    Begin gas binning..."
 
-    global time2, binArray, cubeZBins, vel, scaleFactor, offSet, zUpperLimit, zBins, coneVec, h1, h2
+    global time2, binArray, cubeZBins, gasVel, scaleFactor, offSet, zUpperLimit, zBins, coneVec, h1, h2
 
     t = time.clock()
     #get Y and Z components of particle angle
@@ -182,9 +182,15 @@ def bin_Gas(particle, length, z, binned):
     yDist = particle[1]-cone[1]
     zDist = particle[2]-cone[2]
 
+    xDist = particle[0] - np.sqrt(np.square(yDist) + np.square(zDist))
+
     #center [0,0] @ [pixels/2,pixels/2]
     yBin = ((yDist/coneRadius)*(pixels/2)).astype(int)+(pixels/2)
     zBin = ((zDist/coneRadius)*(pixels/2)).astype(int)+(pixels/2)
+
+    #perculiar velocity
+    v = np.dot(gasVel[binned], coneVec)/np.sqrt(scaleFactor)
+    z = z+(v/c)
 
     xBin = ((z / zUpperLimit)*(zBins-1) - offSet).astype(int)
 
@@ -193,32 +199,26 @@ def bin_Gas(particle, length, z, binned):
     zBin[zBin > pixels-1] = pixels-1
     xBin[xBin > cubeZBins-1] = cubeZBins-1
 
-    #1 is for z floor
     floor = zMin + (zMax-zMin)*((xBin.astype(float))/cubeZBins)
-    binArray[xBin,yBin,zBin,1] = floor
+    binArray[xBin,yBin,zBin,0] = floor
 
-    #2 is for z delta
     ceiling = zMin + (zMax-zMin)*((xBin+1.)/cubeZBins)
     delta = ceiling - floor    
-    binArray[xBin,yBin,zBin,2] = delta
+    binArray[xBin,yBin,zBin,1] = delta
 
-    #0 is for particle count
-    #3 is for total gas mass
-    #4 is for H1Mass
-    #5 is for H2Mass
-    #6 is for flux
-    #7 is for perculiar V
-    #8 is for SFR / radio continuum
+    RA = np.degrees(np.arctan(yDist/xDist))
+    DEC = np.degrees(np.arctan(zDist/(np.sqrt(np.square(yDist)+np.square(xDist)))))
+    binArray[xBin,yBin,zBin,2] = RA
+    binArray[xBin,yBin,zBin,3] = DEC
 
     calcHI()
 
     ionized = gasMass[binned]-(h1+h2)
 
     h1 = h1*1.0e10
+    xDist = particle[0] - np.sqrt(np.square(yDist) + np.square(zDist))
     h2 = h1*1.0e10
     ionized = ionized*1.0e10
-
-    v = np.dot(vel[binned], coneVec)/np.sqrt(scaleFactor)
 
     #luminosity distance
     Dl = length*(1+z)
@@ -246,26 +246,31 @@ def bin_Gas(particle, length, z, binned):
     v = np.bincount(inv_idx, weights=v)
     starF = np.bincount(inv_idx, weights=sfr[binned])
 
+
     #unique co-ords for summed data
     xBin,yBin,zBin = XYZ[uniq_inds].T
 
     #assignments
-    binArray[xBin,yBin,zBin,0] += incr
+    binArray[xBin,yBin,zBin,4] += incr
 
-    binArray[xBin,yBin,zBin,3] += ionized
-    binArray[xBin,yBin,zBin,4] += h1  
-    binArray[xBin,yBin,zBin,5] += h2
-    binArray[xBin,yBin,zBin,6] += flux
+    binArray[xBin,yBin,zBin,5] += ionized
+    binArray[xBin,yBin,zBin,6] += h1  
+    binArray[xBin,yBin,zBin,7] += h2
+    binArray[xBin,yBin,zBin,8] += flux
 
-    binArray[xBin,yBin,zBin,7] += v    
-    binArray[xBin,yBin,zBin,8] += starF
+    binArray[xBin,yBin,zBin,9] += starF
+
+    binArray[xBin,yBin,zBin,11] += v    
 
     time2 = time2 + (time.clock() - t)
 
 #seperate function to add DM mass to lightcone if set in param.txt
 def bin_Misc(particle, length, z, binned, star):
 
-    print "Begin dark matter binning..."
+    if star:
+        print "    Begin star binning..."
+    else:
+        print "    Begin dark matter binning..."
 
     global time3, time4, binArray, cubeZBins, scaleFactor, offSet, zUpperLimit, zBins, starMass, dmMass
 
@@ -279,17 +284,38 @@ def bin_Misc(particle, length, z, binned, star):
 
     yDist = particle[1]-cone[1]
     zDist = particle[2]-cone[2]
+    xDist = particle[0] - np.sqrt(np.square(yDist) + np.square(zDist))
 
     #center [0,0] @ [pixels/2,pixels/2]
     yBin = (np.around((yDist/coneRadius)*(pixels/2))).astype(int)+(pixels/2)
     zBin = (np.around((zDist/coneRadius)*(pixels/2))).astype(int)+(pixels/2)
 
+    v=0
+
+    if star:
+        v = np.dot(starVel[binned], coneVec)/np.sqrt(scaleFactor)
+    else:
+        v = np.dot(dmVel[binned], coneVec)/np.sqrt(scaleFactor)
+
+    z = z+(v/c)
     xBin = ((z / zUpperLimit)*(zBins-1) - offSet).astype(int)
     
     yBin[yBin > pixels-1] = pixels-1
     zBin[zBin > pixels-1] = pixels-1
     xBin[xBin > cubeZBins-1] = cubeZBins-1
     
+    floor = zMin + (zMax-zMin)*((xBin.astype(float))/cubeZBins)
+    binArray[xBin,yBin,zBin,0] = floor
+
+    ceiling = zMin + (zMax-zMin)*((xBin+1.)/cubeZBins)
+    delta = ceiling - floor
+    binArray[xBin,yBin,zBin,1] = delta
+
+    RA = np.degrees(np.arctan(yDist/xDist))
+    DEC = np.degrees(np.arctan(zDist/(np.sqrt(np.square(yDist)+np.square(xDist)))))
+    binArray[xBin,yBin,zBin,2] = RA
+    binArray[xBin,yBin,zBin,3] = DEC
+
     XYZ = np.vstack((xBin,yBin,zBin)).T
 
     order = np.lexsort(XYZ.T)
@@ -303,24 +329,24 @@ def bin_Misc(particle, length, z, binned, star):
     #value summing
     incr = np.bincount(inv_idx)
 
-    #9 is for star particles
-    #10 is for star mass
+    #12 is for star particles
+    #13 is for star mass
     if star:
-	pixelMass = np.bincount(inv_idx, weights=starMass[binned])
+    pixelMass = np.bincount(inv_idx, weights=starMass[binned])
         xBin,yBin,zBin = XYZ[uniq_inds].T
         pixelMass = pixelMass*1.0e10
-        binArray[xBin,yBin,zBin,9] += incr
-        binArray[xBin,yBin,zBin,10] += pixelMass
+        binArray[xBin,yBin,zBin,12] += incr
+        binArray[xBin,yBin,zBin,13] += pixelMass
         time3 = time3 + (time.clock() - t)
     
-    #11 is for dm particles
-    #12 is for dm mass
+    #14 is for dm particles
+    #15 is for dm mass
     else:
         pixelMass = np.bincount(inv_idx, weights=dmMass[binned])
         xBin,yBin,zBin = XYZ[uniq_inds].T
         pixelMass = pixelMass*1.0e10
-        binArray[xBin,yBin,zBin,11] += incr
-        binArray[xBin,yBin,zBin,12] += pixelMass
+        binArray[xBin,yBin,zBin,14] += incr
+        binArray[xBin,yBin,zBin,15] += pixelMass
         time4 = time4 + (time.clock() - t)
 
 
@@ -356,11 +382,11 @@ def calcHI():
     #condition mask 1 = while loop 
     loop = ((ihi-ilo) > 1.)
     while(np.count_nonzero(loop) > 0):
-	#condition mask 2 = if statement
+    #condition mask 2 = if statement
 	mask = ((np.array(KernIntTable[[(ilo[loop]+ihi[loop])/2],1])*frh[loop] < NHILIM)).flatten()
 	ihi[mask] = (ilo[mask]+ihi[mask])/2
-        ilo[~mask] = (ilo[~mask]+ihi[~mask])/2
-	loop = ((ihi-ilo) > 1.)
+    ilo[~mask] = (ilo[~mask]+ihi[~mask])/2
+    loop = ((ihi-ilo) > 1.)
 
     mask = np.asarray(np.where((T_p[nonStarForming] < 3.e4) & (ilo > 0.))).flatten()
     index = ((ilo[mask]+ihi[mask])/2).astype(int)
@@ -651,7 +677,9 @@ gasMass=readsnap(snapFile,'mass','gas')
 sfr=readsnap(snapFile,'sfr','gas')
 fneut=readsnap(snapFile,'nh','gas')
 hsml=readsnap(snapFile,'hsml','gas',units=1)
-vel=readsnap(snapFile,'vel','gas')
+gasVel=readsnap(snapFile,'vel','gas')
+
+
 
 scaleFactor=readhead(snapFile,'time')
 omega_matter=readhead(snapFile,'O0')
@@ -664,6 +692,7 @@ print "\n"
 starCount = readhead(snapFile, 'starcount')
 starPos=readsnap(snapFile,'pos','star')
 starMass=readsnap(snapFile,'mass','star')
+starVel=readsnap(snapFile,'vel','star')
 
 print '\n'
 print "Star particles in this cube=",starCount
@@ -673,6 +702,7 @@ if doDM:
     dmCount = readhead(snapFile, 'dmcount')
     dmPos=readsnap(snapFile,'pos','dm')
     dmMass=readsnap(snapFile,'mass','dm')
+    dmVel=readsnap(snapFile,'vel','dm')
 
     print "\n"
     print "Dark matter particles in this cube=",dmCount
@@ -696,10 +726,13 @@ regions = breakUp + breakDown + breakLeft + breakRight + diag1 + diag2 + diag3 +
 #create data cube
 #include 9th and 10th element for star, 11th,12th for dm
 
+numElems = 0
 if doDM:
-    binArray = np.zeros((cubeZBins, pixels, pixels, 13), dtype=np.float32)
+    numElems = 16
+    binArray = np.zeros((cubeZBins, pixels, pixels, 16), dtype=np.float32)
 else:
-    binArray = np.zeros((cubeZBins, pixels, pixels, 11), dtype=np.float32)
+    numElems = 14
+    binArray = np.zeros((cubeZBins, pixels, pixels, 14), dtype=np.float32)
 
 
 print "Done!"
@@ -730,11 +763,11 @@ def startTile(label, coords):
     t= time.clock()
     tiledPartPos = gasPos + cubeSize*np.array(coords)
     test_particle(tiledPartPos, False, False)
-    print "Gas comeplete. \n" 
+    print "Gas complete. \n" 
 
     tiledPartPos = starPos + cubeSize*np.array(coords)
     test_particle(tiledPartPos, True, False)
-    print "Stars comeplete. \n"
+    print "Stars complete. \n"
 
     if(doDM):
         tiledPartPos = dmPos + cubeSize*np.array(coords)
@@ -782,8 +815,8 @@ if((down and left) or diag4):
     startTile("diagonal", [0,-1,-1])
 
 #average velocities
-mask = binArray[:,:,:,0] > 0
-binArray[mask,6] = binArray[mask,6]/binArray[mask,0]
+mask = binArray[:,:,:,4] > 0
+binArray[mask,11] = binArray[mask,11]/binArray[mask,4]
 
 #--------------------------------------------
 #------------------I/O-----------------------
@@ -796,8 +829,11 @@ print "=============================="
 print "\n"
 
 dir = path.dirname(__file__)
-filename = path.join(dir, 'data/cubeID_'+str(cubeID)+'_data')
-np.save(filename, binArray)
+filename = path.join(dir, 'data/cubeID_'+str(cubeID))
+
+time5 = time.clock()
+
+np.savez_compressed(filename, z=binArray[:,:,:,0], deltaZ=binArray[:,:,:,1], ra=binArray[:,:,:,2], dec=binArray[:,:,:,3], gasParts=binArray[:,:,:,4], ionisedMass=binArray[:,:,:,5], hiMass=binArray[:,:,:,6], h2Mass=binArray[:,:,:,7], hiFlux=binArray[:,:,:,8], sfr=binArray[:,:,:,9], radioCont=binArray[:,:,:,10], perculiarV=binArray[:,:,:,11], starParts=binArray[:,:,:,12], starMass=binArray[:,:,:,13], dmParts=binArray[:,:,:,14], dmMass=binArray[:,:,:,15])
 
 #------------------------------------------
 
@@ -813,4 +849,6 @@ print "Star binning time:", time3
 
 if doDM:
     print "DM binning time:", time4
+
+print "IO time", time.clock()-time5
 
