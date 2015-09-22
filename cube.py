@@ -382,11 +382,11 @@ def calcHI():
     #condition mask 1 = while loop 
     loop = ((ihi-ilo) > 1.)
     while(np.count_nonzero(loop) > 0):
-		#condition mask 2 = if statement
-		mask = ((np.array(KernIntTable[[(ilo[loop]+ihi[loop])/2],1])*frh[loop] < NHILIM)).flatten()
-		ihi[mask] = (ilo[mask]+ihi[mask])/2
-		ilo[~mask] = (ilo[~mask]+ihi[~mask])/2
-		loop = ((ihi-ilo) > 1.)
+	#condition mask 2 = if statement
+	mask = ((np.array(KernIntTable[[(ilo[loop]+ihi[loop])/2],1])*frh[loop] < NHILIM)).flatten()
+	ihi[mask] = (ilo[mask]+ihi[mask])/2
+	ilo[~mask] = (ilo[~mask]+ihi[~mask])/2
+	loop = ((ihi-ilo) > 1.)
 
     mask = np.asarray(np.where((T_p[nonStarForming] < 3.e4) & (ilo > 0.))).flatten()
     index = ((ilo[mask]+ihi[mask])/2).astype(int)
