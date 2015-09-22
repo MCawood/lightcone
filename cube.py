@@ -148,13 +148,13 @@ def test_particle(particle, starFlag, dmFlag):
     if (numParts > 0):
     #if tested particles are stars
 	if starFlag:
-        print "    ", numParts, "star particles found in this tile"
-            bin_Misc(particle[binned], length[binned], z[binned], binned, True)
+    	print "    ", numParts, "star particles found in this tile"
+    	bin_Misc(particle[binned], length[binned], z[binned], binned, True)
 
     #if particles are dark matter
 	elif dmFlag:
-        print "    ", numParts, "DM particles found in this tile"
-        bin_Misc(particle[binned], length[binned], z[binned], binned, False)
+    	print "    ", numParts, "DM particles found in this tile"
+    	bin_Misc(particle[binned], length[binned], z[binned], binned, False)
     
 	#if particles are gas
 	elif ~starFlag and ~dmFlag:
@@ -332,7 +332,7 @@ def bin_Misc(particle, length, z, binned, star):
     #12 is for star particles
     #13 is for star mass
     if star:
-    pixelMass = np.bincount(inv_idx, weights=starMass[binned])
+    	pixelMass = np.bincount(inv_idx, weights=starMass[binned])
         xBin,yBin,zBin = XYZ[uniq_inds].T
         pixelMass = pixelMass*1.0e10
         binArray[xBin,yBin,zBin,12] += incr
