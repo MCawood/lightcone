@@ -224,7 +224,6 @@ else:
 
 	print "Saving..."
 	
-	print str(labels[i]), np.shape(dataCube), np.sum(dataCube), np.count_nonzero(dataCube)
 	np.savez_compressed(('dataCube_'+str(labels[i])), dataSet=dataCube[0:zBins,:,:])
 	dataCube = 0
 	print "Done. \n"
