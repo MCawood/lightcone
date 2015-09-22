@@ -148,18 +148,18 @@ def test_particle(particle, starFlag, dmFlag):
     if (numParts > 0):
     #if tested particles are stars
 	if starFlag:
-		print "    ", numParts, "star particles found in this tile"
-		bin_Misc(particle[binned], length[binned], z[binned], binned, True)
+	    print "    ", numParts, "star particles found in this tile"
+	    bin_Misc(particle[binned], length[binned], z[binned], binned, True)
 
     #if particles are dark matter
 	elif dmFlag:
-		print "    ", numParts, "DM particles found in this tile"
-		bin_Misc(particle[binned], length[binned], z[binned], binned, False)
+	    print "    ", numParts, "DM particles found in this tile"
+	    bin_Misc(particle[binned], length[binned], z[binned], binned, False)
     
 	#if particles are gas
 	elif ~starFlag and ~dmFlag:
-		print "    ", numParts, "gas particles found in this tile"
-		bin_Gas(particle[binned], length[binned], z[binned], binned)
+	    print "    ", numParts, "gas particles found in this tile"
+	    bin_Gas(particle[binned], length[binned], z[binned], binned)
 
 	else:
 	    print "    No particles found in this tile"
