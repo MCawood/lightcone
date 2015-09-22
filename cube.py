@@ -122,11 +122,11 @@ def test_particle(particle, starFlag, dmFlag):
     global time1, OneOverPi, coneVec, binned
     t = time.clock()
     if starFlag:
-    print "Starting star particle testing..."
+    	print "Starting star particle testing..."
     elif dmFlag:
-    print "Starting DM particle testing..."
+    	print "Starting DM particle testing..."
     else:
-        print "Starting gas particle testing..."
+    	print "Starting gas particle testing..."
 
     #calculated comoving distance to each particle in snapshot
     length = np.linalg.norm(particle, axis=1)
