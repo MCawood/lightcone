@@ -117,7 +117,9 @@ def calcRC():
 
     global dataCube
 
-    sfr = np.load('dataCube_z.npz')['dataSet']
+    clock = time.time()
+
+    sfr = np.load('dataCube_sfr.npz')['dataSet']
 
     maxZ = 0.58
     freqMax = HIfreq
@@ -126,15 +128,19 @@ def calcRC():
     channelWidth = freqRange/zBins
 
     freqs = freqMin + channelWidth*(np.arange(zBins))
-    for i in range(zBins):
 
-	doMask = sfr[i,:,:] > 0.
+    for i in range(pixels):
+        for j in range(pixels):
 
-    	L = np.zeros((pixels,pixels))
-    	L[doMask] = (sfr[i,doMask]/5.9e-22)*channelWidth*1.e3
+            sources = np.nonzero(sfr[:,i,j])
 
-    	nF = freqs[i]/freqs
-    	dataCube += L * np.power(nF, -0.7)[:,None,None]
+            for k in range(np.size(sources)):
+
+                L = (sfr[sources[0][k],i,j]/5.9e-22)*channelWidth*1.e3
+
+                nF = freqs[k]/freqs
+                dataCube[:,i,j] += L * np.power(nF, -0.7)
+
 
 #func to read boxes from file
 def addBox(prop, cube):
@@ -228,8 +234,6 @@ else:
 	dataCube = 0
 	print "Done. \n"
 
-    print "Saving new snapshot to dataCube.npy"
-    np.save('dataCube', dataCube)
 
 
 def zToFreq (z):    
