@@ -260,8 +260,6 @@ while 1:
 	filename = os.path.join(dir, 'logs/post.log')
 
 	os.system("python postProcessor.py "+ str(numCubes) + " > " + filename)
-	os.system("python calcRadius.py")
-
 
 	print "Postprocessing complete!"
 	print "Time:", round((time.time() - t2)/60, 2), "mins"
