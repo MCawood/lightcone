@@ -122,11 +122,11 @@ def test_particle(particle, starFlag, dmFlag):
     global time1, OneOverPi, coneVec, binned
     t = time.clock()
     if starFlag:
-    	print "Starting star particle testing..."
+	print "Starting star particle testing..."
     elif dmFlag:
-    	print "Starting DM particle testing..."
+	print "Starting DM particle testing..."
     else:
-    	print "Starting gas particle testing..."
+        print "Starting gas particle testing..."
 
     #calculated comoving distance to each particle in snapshot
     length = np.linalg.norm(particle, axis=1)
@@ -146,20 +146,20 @@ def test_particle(particle, starFlag, dmFlag):
     numParts = np.sum(binned)
 
     if (numParts > 0):
-    #if tested particles are stars
+	#if tested particles are stars
 	if starFlag:
-	    print "    ", numParts, "star particles found in this tile"
-	    bin_Misc(particle[binned], length[binned], z[binned], binned, True)
+            print "    ", numParts, "star particles found in this tile"
+            bin_Misc(particle[binned], length[binned], z[binned], binned, True)
 
-    #if particles are dark matter
+	#if particles are dark matter
 	elif dmFlag:
-	    print "    ", numParts, "DM particles found in this tile"
+  	    print "    ", numParts, "DM particles found in this tile"
 	    bin_Misc(particle[binned], length[binned], z[binned], binned, False)
     
 	#if particles are gas
 	elif ~starFlag and ~dmFlag:
-	    print "    ", numParts, "gas particles found in this tile"
-	    bin_Gas(particle[binned], length[binned], z[binned], binned)
+            print "    ", numParts, "gas particles found in this tile"
+            bin_Gas(particle[binned], length[binned], z[binned], binned)
 
 	else:
 	    print "    No particles found in this tile"
@@ -332,7 +332,7 @@ def bin_Misc(particle, length, z, binned, star):
     #12 is for star particles
     #13 is for star mass
     if star:
-    	pixelMass = np.bincount(inv_idx, weights=starMass[binned])
+	pixelMass = np.bincount(inv_idx, weights=starMass[binned])
         xBin,yBin,zBin = XYZ[uniq_inds].T
         pixelMass = pixelMass*1.0e10
         binArray[xBin,yBin,zBin,12] += incr
@@ -385,7 +385,7 @@ def calcHI():
 	#condition mask 2 = if statement
 	mask = ((np.array(KernIntTable[[(ilo[loop]+ihi[loop])/2],1])*frh[loop] < NHILIM)).flatten()
 	ihi[mask] = (ilo[mask]+ihi[mask])/2
-	ilo[~mask] = (ilo[~mask]+ihi[~mask])/2
+        ilo[~mask] = (ilo[~mask]+ihi[~mask])/2
 	loop = ((ihi-ilo) > 1.)
 
     mask = np.asarray(np.where((T_p[nonStarForming] < 3.e4) & (ilo > 0.))).flatten()
